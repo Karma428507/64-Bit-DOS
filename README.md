@@ -1,2 +1,2 @@
 # 64-Bit-DOS
-A monolithic DOS like OS made for 64 bit processors.
+A modular DOS like OS made for 64 bit processors.
