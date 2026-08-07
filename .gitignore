@@ -1,1 +1,2 @@
-.bin/*
+# Ignores the bin folder
+bin/
