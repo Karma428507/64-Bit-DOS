@@ -1,11 +1,22 @@
+# assembler
+ASM=/usr/bin/nasm
+# compiler
+CC=/usr/bin/gcc
+# linker
+LD=/usr/bin/ld
+
+FAIL_REASON="unknown"
+
 main() {
     # handle different arguements
     for arg in "$@"; do
         echo "$arg"
     done
 
-    compile kernel system/sys32/kernel.exc
-    grub-file --is-x86-multiboot disk/system/sys32/kernel.exc
+    # Compile libc for 32-bit R0, 64-bit R0 and 64-bit R>0
+
+    compile loader32 system/boot/sysldr.exc -32 -Dk || fail;
+    grub-file --is-x86-multiboot disk/system/boot/sysldr.exc
 
     disk_create
     install_disk
@@ -13,13 +24,6 @@ main() {
 }
 
 compile() {
-    # assembler
-    ASM=/usr/bin/nasm
-    # compiler
-    CC=/usr/bin/gcc
-    # linker
-    LD=/usr/bin/ld
-    
     # source directory
     SRC=./src/$1
     # linker file
@@ -30,39 +34,56 @@ compile() {
     # assembler flags
     ASM_FLAGS="-f elf32"
     # compiler flags
-    CC_FLAGS="-I./inc -m32 -std=gnu99 -ffreestanding -Wall -Wextra"
+    CC_FLAGS="-I./inc/std -I./inc/loader -m32 -std=gnu99 -ffreestanding -Wall -Wextra -nostdinc -D__kernel__"
     # linker flags
     LD_FLAGS="-m elf_i386 -T $LINKER -nostdlib"
 
+    # break flag
+    BREAK_FLAG=0
+
+    echo $#
+
+    if [ ! $# -lt 3 ]; then
+        #for i
+        echo debug
+    fi
+
+    #CC_FLAGS="$CC_FLAGS "
+
     # compiles all of the files for the directory
-    find $SRC -type f -name "*.c" | while read FILE; do
+    while read FILE; do
         FIXED_FILE=${FILE#./}
         echo "[ Compiling '$(echo $FILE | sed 's|.*/||')' for '$(echo $TARGET | sed 's|.*/||')' ]" 
         OUT_NAME=$(printf '%s\n' "$FIXED_FILE" | sed 's/\.c$//' | tr '/' '_');
-        echo $OUT_NAME
-        $CC $CC_FLAGS -c "$FILE" -o "bin/$OUT_NAME.o"
-    done
+        $CC $CC_FLAGS -c "$FILE" -o "bin/$OUT_NAME.o" || BREAK_FLAG=1;
+        echo
+    done < <(find $SRC -type f -name "*.c")
 
     # assembles all of the files for the directory
-    find $SRC -type f -name "*.asm" | while read FILE; do
+    while read FILE; do
         FIXED_FILE=${FILE#./}
         echo "[ Assembling '$(echo $FILE | sed 's|.*/||')' for '$(echo $TARGET | sed 's|.*/||')' ]" 
         OUT_NAME=$(printf '%s\n' "$FIXED_FILE" | sed 's/\.asm$//' | tr '/' '_');
-        echo $OUT_NAME
-        $ASM $ASM_FLAGS "$FILE" -o "bin/$OUT_NAME.o"
-    done
+        $ASM $ASM_FLAGS "$FILE" -o "bin/$OUT_NAME.o" || { BREAK_FLAG=1; };
+        echo
+    done < <(find $SRC -type f -name "*.asm")
+
+    if [ $BREAK_FLAG -eq 1 ]; then
+        echo "[ Stopping script... ]"
+        return 1
+    fi
 
     # links the object files
     OBJECTS=$(find bin/ -name "$(printf '%s\n' "${SRC#./}" | tr '/' '_')"*.o)
     echo "[ linking '$(echo $TARGET | sed 's|.*/||')' ]"
-	$LD $LD_FLAGS -o $TARGET $OBJECTS
+	$LD $LD_FLAGS -o $TARGET $OBJECTS || return 1;
 }
 
 disk_create() {
     # create a new disk with a bootable partition
     rm bin/disk.img
     dd if=/dev/zero of=bin/disk.img bs=1M count=91
-    (echo n; echo p; echo 1; echo ""; echo ""; echo a; echo 1; echo w;) | fdisk bin/disk.img
+    (echo n; echo p; echo 1; echo ""; echo ""; echo a; echo w;) | fdisk bin/disk.img
 }
 
 install_disk() {
@@ -97,6 +118,16 @@ emulate() {
         -audiodev pa,id=Sound \
         -device intel-hda \
         -device hda-duplex,audiodev=Sound
+}
+
+clean() {
+    echo "[ Cleaning ]"
+}
+
+fail() {
+    echo "SCRIPT ERROR: $FAIL_REASON"
+    echo "Exiting..."
+    exit 1
 }
 
 # doing this for the sake of organization
