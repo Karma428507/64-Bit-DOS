@@ -45,6 +45,7 @@ _start:
     cli
     extern main
     push ebx
+    push eax
     call main
 loop:
     jmp loop

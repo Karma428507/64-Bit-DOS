@@ -6,6 +6,6 @@
 #define false   0
 
 // Bool
-typedef _bool   bool;
+typedef _Bool bool;
 
 #endif
