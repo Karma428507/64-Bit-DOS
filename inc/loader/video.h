@@ -27,4 +27,8 @@ void init_vga(void);
 short vga_add_entry(int index, uint8_t character, VGA_COLORS fore, VGA_COLORS back);
 void vga_put_char(uint8_t character);
 
+// Console functions
+void printk(const char *fmt, ...);
+void put_string(const char *msg);
+
 #endif
