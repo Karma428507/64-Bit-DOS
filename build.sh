@@ -108,7 +108,6 @@ compile() {
         echo "[ Compiling '$(echo $FILE | sed 's|.*/||')' for '$(echo $TARGET | sed 's|.*/||')' ]" 
         OUT_NAME=$(printf '%s\n' "$FIXED_FILE" | sed 's/\.c$//' | tr '/' '_');
         $CC $CC_FLAGS -c "$FILE" -o "bin/$OUT_NAME.o" || BREAK_FLAG=1;
-        echo "compiler status=$?"
     done < <(find $SRC -type f -name "*.c")
 
     # assembles all of the files for the directory
