@@ -5,8 +5,6 @@ CC=/usr/bin/gcc
 # linker
 LD=/usr/bin/ld
 
-FAIL_REASON="unknown"
-
 main() {
     # load the config file
 
@@ -67,8 +65,7 @@ compile() {
                 LONG_MODE_FLAG=0
             elif [[ "$arg" =~ ^-R([0-2])$ ]]; then
                 if [ "$RING_ACCESS" != "3" ]; then
-                    FAIL_REASON="Ring was already set"
-                    fail
+                    fail "Ring was already set"
                 fi
 
                 RING_ACCESS="${BASH_REMATCH[1]}"
@@ -80,8 +77,7 @@ compile() {
             elif [ $arg == "--no-libc" ]; then
                 USE_LIBC=0
             else
-                FAIL_REASON="$arg is not defined"
-                fail
+                fail "$arg is not defined"
             fi
         done
     fi
@@ -98,6 +94,7 @@ compile() {
     fi
 
     # sets the protection value of the build
+    ASM_FLAGS="$ASM_FLAGS -D__ring__=$RING_ACCESS"
     CC_FLAGS="$CC_FLAGS -D__ring__=$RING_ACCESS"
 
     # adds libc headers
@@ -111,6 +108,7 @@ compile() {
         echo "[ Compiling '$(echo $FILE | sed 's|.*/||')' for '$(echo $TARGET | sed 's|.*/||')' ]" 
         OUT_NAME=$(printf '%s\n' "$FIXED_FILE" | sed 's/\.c$//' | tr '/' '_');
         $CC $CC_FLAGS -c "$FILE" -o "bin/$OUT_NAME.o" || BREAK_FLAG=1;
+        echo "compiler status=$?"
     done < <(find $SRC -type f -name "*.c")
 
     # assembles all of the files for the directory
@@ -118,12 +116,11 @@ compile() {
         FIXED_FILE=${FILE#./}
         echo "[ Assembling '$(echo $FILE | sed 's|.*/||')' for '$(echo $TARGET | sed 's|.*/||')' ]" 
         OUT_NAME=$(printf '%s\n' "$FIXED_FILE" | sed 's/\.asm$//' | tr '/' '_');
-        $ASM $ASM_FLAGS "$FILE" -o "bin/$OUT_NAME.o" || { BREAK_FLAG=1; };
+        $ASM $ASM_FLAGS "$FILE" -o "bin/$OUT_NAME.o" || BREAK_FLAG=1;
     done < <(find $SRC -type f -name "*.asm")
 
     if [ $BREAK_FLAG -eq 1 ]; then
-        echo "[ Stopping script... ]"
-        return 1
+        fail "Compilation failure"
     fi
 
     # link the object files
@@ -143,7 +140,7 @@ compile() {
         OBJECTS="$BASE $OBJECTS"
     fi
 
-	$LD $LD_FLAGS -o $TARGET $OBJECTS || return 1;
+	$LD $LD_FLAGS -o $TARGET $OBJECTS || fail "Linking failure";
     
     # done
     echo "[ done ]"
@@ -196,7 +193,7 @@ clean() {
 }
 
 fail() {
-    echo "SCRIPT ERROR: $FAIL_REASON"
+    echo "SCRIPT ERROR: $@"
     echo "Exiting..."
     exit 1
 }
