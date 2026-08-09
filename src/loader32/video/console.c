@@ -39,6 +39,11 @@ void printk(const char *fmt, ...) {
                     itoa(num, buf, 16);
                     put_string(buf);
                     break;
+                case 'b':
+                    num = va_arg(ap, int);
+                    itoa(num, buf, 2);
+                    put_string(buf);
+                    break;
                 default:
                     // throw an error
                     break;

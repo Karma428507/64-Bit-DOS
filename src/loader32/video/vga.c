@@ -28,9 +28,16 @@ short vga_add_entry(int index, uint8_t character, VGA_COLORS fore, VGA_COLORS ba
 void vga_put_char(uint8_t character) {
     switch (character) {
         case '\n':
+            cursor = ((cursor / 80) + 1) * 80;
             return;
         case '\t':
+            cursor = ((cursor / 4) + 1) * 80;
             return;
+    }
+
+    // make it shift up after line 22
+    if (cursor / 25 > 22) {
+
     }
 
     vga_add_entry(cursor++, character, foreground, background);
